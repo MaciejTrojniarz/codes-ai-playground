@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@astrojs/check": "^0.6.0",
-    "@astro/react": "^3.6.2",
+    "@astrojs/react": "^3.6.2",
     "@astro/tailwind": "^5.1.2",
     "@hookform/resolvers": "^3.9.1",
     "@radix-ui/react-dialog": "^1.1.2",
