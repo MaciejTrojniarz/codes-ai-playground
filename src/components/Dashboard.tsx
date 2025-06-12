@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AddCodeDialog } from './AddCodeDialog'
 import { CodeList } from './CodeList'
 import { LogOut, User, Plus } from 'lucide-react'
+import { isExpired } from '@/lib/utils'
 import type { User as UserType } from '@/lib/types'
 
 interface DashboardProps {
@@ -42,13 +43,19 @@ export function Dashboard({ onLogout }: DashboardProps) {
 
         const { data, error } = await supabase
           .from('discount_codes')
-          .select('status')
+          .select('status, expiry_date')
           .eq('user_id', user.id)
 
         if (error) throw error
 
         const stats = (data || []).reduce((acc, code) => {
-          acc[code.status as keyof typeof acc]++
+          // Check if code should be expired based on date
+          let actualStatus = code.status
+          if (code.status === 'active' && isExpired(code.expiry_date)) {
+            actualStatus = 'expired'
+          }
+          
+          acc[actualStatus as keyof typeof acc]++
           acc.total++
           return acc
         }, { active: 0, used: 0, expired: 0, total: 0 })
