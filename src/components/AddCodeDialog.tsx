@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
 import { Plus, Upload } from 'lucide-react'
+import { extractCodeFromImage } from '@/lib/ocr'
 
 interface AddCodeDialogProps {
   onCodeAdded: () => void
@@ -28,6 +29,7 @@ export function AddCodeDialog({ onCodeAdded }: AddCodeDialogProps) {
   const [minAmount, setMinAmount] = useState('')
   const [image, setImage] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
+  const [processingImage, setProcessingImage] = useState(false)
   const { toast } = useToast()
 
   const resetForm = () => {
@@ -39,7 +41,7 @@ export function AddCodeDialog({ onCodeAdded }: AddCodeDialogProps) {
     setImage(null)
   }
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
       if (file.size > 5 * 1024 * 1024) { // 5MB limit
@@ -51,6 +53,28 @@ export function AddCodeDialog({ onCodeAdded }: AddCodeDialogProps) {
         return
       }
       setImage(file)
+      setProcessingImage(true)
+      
+      try {
+        // Try to extract code from image using OCR
+        const extractedCode = await extractCodeFromImage(file)
+        if (extractedCode) {
+          setCode(extractedCode)
+          toast({
+            title: "Kod wykryty",
+            description: "Znaleziono kod w zdjęciu. Możesz go edytować jeśli potrzeba.",
+          })
+        }
+      } catch (error) {
+        console.error('OCR Error:', error)
+        toast({
+          title: "Uwaga",
+          description: "Nie udało się automatycznie wykryć kodu ze zdjęcia.",
+          variant: "destructive",
+        })
+      } finally {
+        setProcessingImage(false)
+      }
     }
   }
 
@@ -135,93 +159,85 @@ export function AddCodeDialog({ onCodeAdded }: AddCodeDialogProps) {
           Dodaj kod
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Dodaj nowy kod rabatowy</DialogTitle>
           <DialogDescription>
-            Wypełnij formularz, aby dodać nowy kod rabatowy. Musisz podać kod tekstowy lub zdjęcie paragonu.
+            Wypełnij formularz, aby dodać nowy kod rabatowy. Możesz podać kod tekstowy lub zdjęcie paragonu.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="storeName">Nazwa sklepu *</Label>
-              <Input
-                id="storeName"
-                value={storeName}
-                onChange={(e) => setStoreName(e.target.value)}
-                required
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="expiryDate">Data ważności *</Label>
-              <Input
-                id="expiryDate"
-                type="date"
-                value={expiryDate}
-                onChange={(e) => setExpiryDate(e.target.value)}
-                required
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="code">Kod rabatowy</Label>
-              <Input
-                id="code"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="np. RABAT20"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="conditions">Warunki promocji</Label>
-              <Input
-                id="conditions"
-                value={conditions}
-                onChange={(e) => setConditions(e.target.value)}
-                placeholder="np. tylko dla nowych klientów"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="minAmount">Minimalna kwota zakupu (zł)</Label>
-              <Input
-                id="minAmount"
-                type="number"
-                step="0.01"
-                value={minAmount}
-                onChange={(e) => setMinAmount(e.target.value)}
-                placeholder="np. 100.00"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="image">Zdjęcie paragonu</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  id="image"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="hidden"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => document.getElementById('image')?.click()}
-                  className="w-full"
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  {image ? image.name : 'Wybierz zdjęcie'}
-                </Button>
-              </div>
-            </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="storeName">Nazwa sklepu</Label>
+            <Input
+              id="storeName"
+              value={storeName}
+              onChange={(e) => setStoreName(e.target.value)}
+              required
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="expiryDate">Data ważności</Label>
+            <Input
+              id="expiryDate"
+              type="date"
+              value={expiryDate}
+              onChange={(e) => setExpiryDate(e.target.value)}
+              required
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="code">Kod rabatowy</Label>
+            <Input
+              id="code"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="Opcjonalne - zostanie wykryty ze zdjęcia"
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="conditions">Warunki promocji</Label>
+            <Input
+              id="conditions"
+              value={conditions}
+              onChange={(e) => setConditions(e.target.value)}
+              placeholder="Opcjonalne"
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="minAmount">Minimalna kwota zakupu</Label>
+            <Input
+              id="minAmount"
+              type="number"
+              step="0.01"
+              value={minAmount}
+              onChange={(e) => setMinAmount(e.target.value)}
+              placeholder="Opcjonalne"
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="image">Zdjęcie paragonu</Label>
+            <Input
+              id="image"
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              disabled={processingImage}
+            />
+            {processingImage && (
+              <p className="text-sm text-muted-foreground">
+                Przetwarzanie zdjęcia...
+              </p>
+            )}
           </div>
           
           <DialogFooter>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || processingImage}>
               {loading ? 'Dodawanie...' : 'Dodaj kod'}
             </Button>
           </DialogFooter>
