@@ -18,6 +18,13 @@ export function AuthForm({ onAuthSuccess }: AuthFormProps) {
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
 
+  const validatePassword = (password: string): string | null => {
+    if (password.length < 6) {
+      return 'Hasło musi mieć co najmniej 6 znaków'
+    }
+    return null
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -28,7 +35,12 @@ export function AuthForm({ onAuthSuccess }: AuthFormProps) {
           email,
           password,
         })
-        if (error) throw error
+        if (error) {
+          if (error.message.includes('email_not_confirmed')) {
+            throw new Error('Email nie został potwierdzony. Sprawdź swoją skrzynkę pocztową i kliknij link aktywacyjny.')
+          }
+          throw error
+        }
         
         toast({
           title: "Zalogowano pomyślnie",
@@ -40,6 +52,11 @@ export function AuthForm({ onAuthSuccess }: AuthFormProps) {
           throw new Error('Hasła nie są identyczne')
         }
         
+        const passwordError = validatePassword(password)
+        if (passwordError) {
+          throw new Error(passwordError)
+        }
+        
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -48,9 +65,9 @@ export function AuthForm({ onAuthSuccess }: AuthFormProps) {
         
         toast({
           title: "Konto utworzone",
-          description: "Możesz się teraz zalogować",
+          description: "Sprawdź swoją skrzynkę pocztową i potwierdź email, aby się zalogować",
         })
-        onAuthSuccess()
+        setIsLogin(true) // Switch to login mode after successful registration
       }
     } catch (error: any) {
       toast({
@@ -88,12 +105,15 @@ export function AuthForm({ onAuthSuccess }: AuthFormProps) {
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="password">Hasło</Label>
+            <Label htmlFor="password">
+              Hasło {!isLogin && <span className="text-xs text-muted-foreground">(min. 6 znaków)</span>}
+            </Label>
             <Input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              minLength={6}
               required
             />
           </div>
@@ -106,6 +126,7 @@ export function AuthForm({ onAuthSuccess }: AuthFormProps) {
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
+                minLength={6}
                 required
               />
             </div>
