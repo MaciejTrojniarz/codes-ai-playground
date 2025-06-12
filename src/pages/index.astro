@@ -1,0 +1,20 @@
+---
+import Layout from '../layouts/Layout.astro';
+import '../styles/globals.css';
+---
+
+<Layout title="Kody Rabatowe - Zarządzaj swoimi kodami zniżkowymi">
+  <div id="app"></div>
+</Layout>
+
+<script>
+  import { App } from '../components/App.tsx';
+  import React from 'react';
+  import { createRoot } from 'react-dom/client';
+
+  const container = document.getElementById('app');
+  if (container) {
+    const root = createRoot(container);
+    root.render(React.createElement(App));
+  }
+</script>
